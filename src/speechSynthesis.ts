@@ -1,3 +1,5 @@
+import { getVoice } from "./voiceFetcher";
+
 export interface ISpeechSynthesisProps {
   pitch: number;
   rate: number;
@@ -8,41 +10,20 @@ export interface ISpeechSynthesisProps {
 }
 
 export class SpeechSynthesis {
-  private utterance: SpeechSynthesisUtterance;
-  private selected: SpeechSynthesisVoice;
+  private utterance: SpeechSynthesisUtterance | undefined;
+  private selected: SpeechSynthesisVoice | undefined ;
 
-  constructor(props: ISpeechSynthesisProps) {
-    this.utterance = new window.SpeechSynthesisUtterance();
-    this.selected = SpeechSynthesis.getVoice(props.voice);
-    this.utterance.voice = this.selected;
-    this.utterance.text = props.text.replace(/\n/g, '');
-    this.utterance.lang = props.lang || 'en-GB';
-    this.utterance.pitch = props.pitch;
-    this.utterance.rate = props.rate;
-    this.utterance.volume = props.volume;
+  constructor(private props: ISpeechSynthesisProps) {
   }
 
-  static supported() {
-    return window.speechSynthesis;
+  public get voice() : string {
+    return this.selected ? this.selected.name : '';
   }
 
-  static getVoice(selected: string) {
-    const voices = window.speechSynthesis.getVoices();
-    const voice = voices.find(voice => voice.name === selected);
-    return voice !== undefined ? voice : voices[0];
-  }
-
-  public onend(func: () => void) {
-    this.utterance.onend = func;
-  }
-
-  public onerror(func: () => void) {
-    this.utterance.onerror = func;
-  }
-
-  public speak() {
+  public async speak(): Promise<void> {
+    const u = await this.getUtterance();
     window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(this.utterance);
+    window.speechSynthesis.speak(u);
   }
 
   public pause() {
@@ -55,5 +36,18 @@ export class SpeechSynthesis {
 
   public resume() {
     window.speechSynthesis.resume();
+  }
+
+  private async getUtterance(): Promise<SpeechSynthesisUtterance> {
+    const utterance = new window.SpeechSynthesisUtterance();
+    const selected = await getVoice(this.props.voice);
+    utterance.voice = selected;
+    utterance.text = this.props.text.replace(/\n/g, '');
+    utterance.lang = this.props.lang || 'en-GB';
+    utterance.pitch = this.props.pitch;
+    utterance.rate = this.props.rate;
+    utterance.volume = this.props.volume;
+    this.selected = selected;
+    return utterance;
   }
 }
